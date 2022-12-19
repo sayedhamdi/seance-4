@@ -22,9 +22,12 @@ app.get("/signup",(req,res)=>{
 })
 //Ajouter un route handler pour la page signin
 app.get("/signin",(req,res)=>{
-    res.end("page signin")
+    res.render('signin')
 })
 
+app.post("/signin",(req,res)=>{
+    res.end("login successful")
+})
 app.get("*",(req,res)=>{
     res.end("404")
 })
