@@ -2,7 +2,16 @@ const dotenv = require("dotenv")
 const path = require("path")
 const express = require("express");
 const bodyParser = require("body-parser")
-
+const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+const csv = require("csvtojson")
+const csvWriter = createCsvWriter({
+    path: 'users.csv',
+    header: [
+        {id: 'fullname', title: 'fullname'},
+        {id: 'password', title: 'password'},
+        {id : 'email' , title: 'email'}
+    ]
+});
 dotenv.config()
 
 const port = process.env.port || 8000 
@@ -31,7 +40,7 @@ app.get("/signin",(req,res)=>{
 app.post("/signin",(req,res)=>{
     res.end("login successful")
 })
-app.post("/signup",(req,res)=>{
+app.post("/signup",async (req,res)=>{
     
     // verification des données 
     let {fullname,email,password} = req.body
@@ -41,17 +50,19 @@ app.post("/signup",(req,res)=>{
         return
     }
     // verifier unicité mtaa el email
-    
-    //
-    
-    // traitement 
-
-
-    console.log("hello")
-    //response
-
-    //traitement du success
-    //créer une ligne dans mon fichier csv
+    //a9ra el ficheir users.csv
+    //creation compte
+    let users = await csv().fromFile("./users.csv")
+    console.log(users)
+    let userWithEmail = users.filter((user)=>user.EMAIL ==email) 
+    if(userWithEmail.length>0){
+        res.render("signup",{msg:"Email already exists use another email"})
+        return
+    }
+    // redirection page login
+    const newUser = {email,fullname,password}
+    csvWriter.writeRecords([...users,newUser])
+   
     res.render("signin",{msg:"your account has been created"})
 })
 app.get("*",(req,res)=>{
