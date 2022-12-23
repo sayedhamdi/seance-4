@@ -6,6 +6,8 @@ const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const csv = require("csvtojson")
 const session = require('express-session')
 const cookieParser = require("cookie-parser");
+const url = require('url');
+const querystring = require('querystring');
 
 
 const csvWriter = createCsvWriter({
@@ -24,18 +26,26 @@ const port = process.env.port || 8000
 const app = express();
 // configuration pug
 app.set('view engine', 'pug')
+const auth = (req,res,next)=>{
+    if(req.session.email){
+        next()
+    }
+    else{
+        res.redirect("/signin");
+    }
+}   
 
 app.use(express.json())
 app.use(bodyParser.urlencoded({ extended: false }))
-const oneDay = 1000 * 60 * 60 * 24;
 
 app.use(session({
     secret: '123456789',
-    resave: false,
-    saveUninitialized: true,
-    cookie: { secure: true, maxAge: oneDay }
+    cookie:{
+        maxAge:10*1000
+    }
 }))
 app.use(cookieParser());
+
 
 //Ajouter un route handler pour la page d'accueil
 app.get("/",(req,res)=>{
@@ -48,11 +58,15 @@ app.get("/signup",(req,res)=>{
 })
 //Ajouter un route handler pour la page signin
 app.get("/signin",(req,res)=>{
+    let parsedUrl = url.parse(req.url);
+    console.log(parsedUrl)
     res.render('signin')
 })
-app.get("/profile",(req,res)=>{
-    console.log(req.session.cookie)
-    res.render("profile")
+app.get("/profile",auth,async (req,res)=>{
+    
+    let users = await csv().fromFile("./users.csv")
+    let user = users.filter((user)=>user.email == req.session.email )
+    res.render("profile",{fullname : user[0].fullname,email:user[0].email})
 })
 
 app.post("/signin",async (req,res)=>{
@@ -69,10 +83,15 @@ app.post("/signin",async (req,res)=>{
         res.render("signin",{msg:"Email or password incorrect"})
         return
     }
-    res.cookie('userEmail', user[0].email)
+    req.session.email = user[0].email
     res.redirect("/profile")
     
 })
+app.get("/logout",(req,res)=>{
+    req.session.destroy();
+    res.redirect("/signin")
+})
+
 app.post("/signup",async (req,res)=>{
     
     // verification des données 
@@ -95,14 +114,13 @@ app.post("/signup",async (req,res)=>{
     // redirection page login
     const newUser = {email,fullname,password}
     csvWriter.writeRecords([...users,newUser])
-   
-    res.render("signin",{msg:"your account has been created"})
+    
+    res.redirect("signin?msg=account created")
 })
 
 app.get("*",(req,res)=>{
     res.end("404")
 })
-
 
 app.listen(port,()=>{
     console.log(`listening on port ${port}`)
